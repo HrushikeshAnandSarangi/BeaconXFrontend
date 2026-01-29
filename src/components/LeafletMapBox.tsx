@@ -89,7 +89,6 @@ const RecenterMap = ({ center, zoom }: { center: { lat: number; lng: number }; z
 const LeafletMapBox: React.FC<Props> = ({
   center = defaultCenter,
   markers = [],
-  mapTypeId: _mapTypeId = "roadmap",
   zoom = 5,
   showOpenSpaces = false,
   showShelterPoints = false,

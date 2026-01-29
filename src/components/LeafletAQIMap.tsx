@@ -1,7 +1,7 @@
 "use client"
 
-import React from "react";
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
+import React, { useEffect } from "react";
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from "react-leaflet";
 import type { Map as LeafletMap } from "leaflet";
 
 export type AQIMapPoint = {
@@ -32,6 +32,16 @@ type Props = {
 const osmTileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+const MapReady = ({ onReady }: { onReady?: (map: LeafletMap) => void }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    onReady?.(map);
+  }, [map, onReady]);
+
+  return null;
+};
+
 const LeafletAQIMap: React.FC<Props> = ({
   mapCenter,
   airQuality,
@@ -49,10 +59,8 @@ const LeafletAQIMap: React.FC<Props> = ({
       center={[mapCenter.lat, mapCenter.lng]}
       zoom={12}
       scrollWheelZoom={false}
-      whenCreated={(map) => {
-        onMapReady?.(map);
-      }}
     >
+      <MapReady onReady={onMapReady} />
       <TileLayer attribution={osmAttribution} url={osmTileUrl} />
       {airQuality?.coordinates && (
         <CircleMarker
