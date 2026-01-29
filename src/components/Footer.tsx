@@ -1,11 +1,18 @@
 "use client"
 
 import Link from 'next/link';
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState('');
+  const [decorations, setDecorations] = useState<Array<{
+    width: number;
+    height: number;
+    top: number;
+    left: number;
+    opacity: number;
+  }>>([]);
   
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -13,22 +20,33 @@ export default function Footer() {
     alert(`Thanks for subscribing with ${email}!`);
     setEmail('');
   };
+
+  useEffect(() => {
+    const generated = Array.from({ length: 6 }, () => ({
+      width: Math.random() * 400 + 100,
+      height: Math.random() * 400 + 100,
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      opacity: Math.random() * 0.5 + 0.1,
+    }));
+    setDecorations(generated);
+  }, []);
   
   return (
     <footer className="bg-gradient-to-tr from-teal-900 via-teal-800 to-teal-900 text-white relative overflow-hidden">
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden opacity-10">
         <div className="absolute top-0 left-0 w-full h-1/2">
-          {[...Array(6)].map((_, i) => (
+          {decorations.map((item, i) => (
             <div 
               key={i}
               className="absolute rounded-full bg-teal-400"
               style={{
-                width: `${Math.random() * 400 + 100}px`,
-                height: `${Math.random() * 400 + 100}px`,
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                opacity: Math.random() * 0.5 + 0.1
+                width: `${item.width}px`,
+                height: `${item.height}px`,
+                top: `${item.top}%`,
+                left: `${item.left}%`,
+                opacity: item.opacity
               }}
             />
           ))}

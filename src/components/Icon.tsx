@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 // import { useRouter } from "next/router";
 import Link from "next/link";
+import Image from "next/image";
 
 type Disaster = {
   type: string;
@@ -18,22 +19,14 @@ type DisasterIconsProps = {
 // const router = useRouter();
 
 const AlertIcon = ({ className = "" }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+  <Image
+    src="/alert-icon.png"
+    alt="Alert"
+    width={120}
+    height={120}
     className={className}
-  >
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-    <line x1="12" y1="9" x2="12" y2="13"></line>
-    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>
+    priority
+  />
 );
 
 const EarthquakeIcon = ({ className = "" }: { className?: string }) => (
@@ -105,36 +98,24 @@ export default function DisasterIcons({
 
   return (
     <div
-      className="fixed top-5 right-12 z-50 flex flex-col items-end"
+      className="fixed top-1 right-6 z-50 flex flex-col items-end"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative group">
-        {!isHovered && isLoaded && internalDisasters.length > 0 && (
-          <div className="absolute top-6 right-16 px-3 py-1 bg-gray-800 text-white text-sm rounded-lg shadow-lg whitespace-nowrap">
-            {primaryDisasterType === "earthquake" 
-              ? `Earthquake ${disasterCounts["earthquake"] || 0}` 
-              : primaryDisasterType === "cyclone" 
-                ? `Cyclone ${disasterCounts["cyclone"] || 0}`
-                : `${internalDisasters.length} Alert${internalDisasters.length !== 1 ? 's' : ''}`
-            }
-          </div>
-        )}
 
         <Link
           href="#"
-          className="relative flex h-13 w-13 items-center justify-center rounded-full 
-                     bg-red-600 shadow-xl hover:bg-red-700 transition-all focus:ring-2 
-                     focus:ring-red-900"
+          className="relative flex h-40 w-40 items-center justify-center"
           aria-label={`${internalDisasters.length} alerts - Click for details`}
         >
-          <span className="absolute inset-0 animate-ripple rounded-full border-2 border-white opacity-70"></span>
-          <span className="absolute inset-0 animate-ripple2 rounded-full border-2 border-white opacity-40"></span>
+          <span className="absolute inset-0 animate-ripple rounded-full border-2 border-teal-300 opacity-40"></span>
+          <span className="absolute inset-0 animate-ripple2 rounded-full border-2 border-teal-200 opacity-30"></span>
 
           {!isLoaded ? (
             <span className="text-white text-sm">...</span>
           ) : (
-            <div className="relative h-6 w-6 text-white">
+            <div className="relative h-32 w-32">
               {/* Default alert icon */}
               <AlertIcon className={`absolute transition-opacity duration-300 ${isHovered && primaryDisasterType ? 'opacity-0' : 'opacity-100'}`} />
               
@@ -150,12 +131,6 @@ export default function DisasterIcons({
             </div>
           )}
 
-          {internalDisasters.length > 0 && isLoaded && (
-            <span className="absolute top-0 right-0 h-5 w-5 text-xs bg-white text-red-600 font-bold 
-                           rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-              {internalDisasters.length}
-            </span>
-          )}
         </Link>
       </div>
 

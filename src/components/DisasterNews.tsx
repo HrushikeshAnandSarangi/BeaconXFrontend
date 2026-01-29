@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { AlertCircle, Wind, Map } from 'lucide-react';
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import type { Map as LeafletMap } from 'leaflet';
+import type { AQIMapPoint } from './LeafletAQIMap';
 import ErrorBoundary from './ErrorBoundary';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -39,13 +41,10 @@ interface HotspotCity {
   coordinates: { lat: number; lng: number };
 }
 
-interface MapPoint {
-  id: string;
-  location: string;
-  coordinates: { lat: number; lng: number };
-  aqi: number;
-  category: string;
-}
+const LeafletAQIMap = dynamic(() => import('./LeafletAQIMap'), {
+  ssr: false,
+  loading: () => <div className="text-center p-4 text-gray-400">Loading map...</div>,
+});
 
 const mapContainerStyle = {
   width: '100%',
@@ -70,21 +69,14 @@ const NewsDashboard = () => {
   const [debouncedLocation, setDebouncedLocation] = useState<string>(location);
   const [userLocation, setUserLocation] = useState<string | null>(null);
   const [showMap, setShowMap] = useState<boolean>(true);
-  const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<AQIMapPoint | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   
   
   const prevAqi = useRef<number | null>(null);
   const aqIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const newsIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  
-  const { isLoaded: mapsLoaded, loadError: mapLoadError } = useJsApiLoader({
-    id: 'env-dashboard-map',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    version: "weekly",
-    libraries: ["places", "visualization"]
-  });
+  const mapRef = useRef<LeafletMap | null>(null);
 
   const hotspotCities: HotspotCity[] = [
     { name: 'Delhi', country: 'India', coordinates: { lat: 28.7041, lng: 77.1025 } },
@@ -166,16 +158,24 @@ const NewsDashboard = () => {
     setIsLoadingAQ(true);
     try {
       const geocodeResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(debouncedLocation)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(debouncedLocation)}`,
+        {
+          headers: {
+            "Accept-Language": "en",
+          },
+        }
       );
-      
-      const geocodeData = await geocodeResponse.json();
-      
-      if (!geocodeData.results || geocodeData.results.length === 0) {
+
+      const geocodeData: { lat: string; lon: string }[] = await geocodeResponse.json();
+
+      if (!geocodeData.length) {
         throw new Error('Location not found');
       }
-      
-      const locationCoords = geocodeData.results[0].geometry.location;
+
+      const locationCoords = {
+        lat: Number.parseFloat(geocodeData[0].lat),
+        lng: Number.parseFloat(geocodeData[0].lon),
+      };
       setMapCenter(locationCoords);
 
       const apiKey = process.env.NEXT_PUBLIC_WAQI_API_KEY || 'demo';
@@ -313,7 +313,11 @@ const NewsDashboard = () => {
 
   useEffect(() => {
     if (mapRef.current && airQuality?.coordinates) {
-      mapRef.current.panTo(airQuality.coordinates);
+      mapRef.current.setView(
+        [airQuality.coordinates.lat, airQuality.coordinates.lng],
+        mapRef.current.getZoom(),
+        { animate: true }
+      );
     }
   }, [airQuality?.coordinates]);
 
@@ -349,10 +353,6 @@ const NewsDashboard = () => {
       setMapCenter(selectedCity.coordinates);
     }
   };
-
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-  }, []);
 
   const generateMapPoints = useCallback(() => {
     if (!airQuality?.coordinates) return [];
@@ -496,77 +496,19 @@ const NewsDashboard = () => {
                 {showMap && (
                 <ErrorBoundary fallback={<div className="text-red-400 p-4">Map failed to load</div>}>
              
-                    {mapsLoaded ? (
-                      <GoogleMap
+                      <LeafletAQIMap
+                        mapCenter={mapCenter}
+                        airQuality={airQuality}
+                        mapPoints={mapPoints}
+                        selectedPoint={selectedPoint}
+                        setSelectedPoint={setSelectedPoint}
+                        getMarkerColor={getMarkerColor}
+                        getAQIColor={getAQIColor}
                         mapContainerStyle={mapContainerStyle}
-                        center={mapCenter}
-                        zoom={12}
-                        onLoad={onMapLoad}
-                        options={{
-                          streetViewControl: false,
-                          mapTypeControl: false,
-                          fullscreenControl: false,
-                          gestureHandling: 'cooperative',
+                        onMapReady={(map) => {
+                          mapRef.current = map;
                         }}
-                      >
-                        {airQuality.coordinates && (
-                          <Marker
-                            position={airQuality.coordinates}
-                            icon={{
-                              path: google.maps.SymbolPath.CIRCLE,
-                              scale: 10,
-                              fillColor: getMarkerColor(airQuality.aqi),
-                              fillOpacity: 1,
-                              strokeWeight: 2,
-                              strokeColor: '#ffffff'
-                            }}
-                            onClick={() => {
-                              setSelectedPoint({
-                                id: 'main',
-                                location: airQuality.location,
-                                coordinates: airQuality.coordinates,
-                                aqi: airQuality.aqi,
-                                category: airQuality.category
-                              });
-                            }}
-                          />
-                        )}
-
-                        {mapPoints.map((point) => (
-                          <Marker 
-                            key={point.id} 
-                            position={point.coordinates} 
-                            icon={{
-                              path: google.maps.SymbolPath.CIRCLE,
-                              scale: 8,
-                              fillColor: getMarkerColor(point.aqi),
-                              fillOpacity: 1,
-                              strokeWeight: 2,
-                              strokeColor: '#ffffff'
-                            }}
-                            onClick={() => setSelectedPoint(point)}
-                          />
-                        ))}
-
-                        {selectedPoint && (
-                          <InfoWindow
-                            position={selectedPoint.coordinates}
-                            onCloseClick={() => setSelectedPoint(null)}
-                          >
-                            <div className="p-2 bg-gray-800 text-gray-200">
-                              <h4 className="font-bold">{selectedPoint.location}</h4>
-                              <div className={`px-2 py-1 rounded ${getAQIColor(selectedPoint.aqi)}`}>
-                                AQI: {selectedPoint.aqi} ({selectedPoint.category})
-                              </div>
-                            </div>
-                          </InfoWindow>
-                        )}
-                      </GoogleMap>
-                    ) : (
-                      <div className="text-center p-4 text-gray-400">
-                        {mapLoadError ? 'Failed to load map' : 'Loading map...'}
-                      </div>
-                    )}
+                      />
                       </ErrorBoundary>
                       )}
                     </div>
